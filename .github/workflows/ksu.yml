@@ -30,7 +30,7 @@ jobs:
           ksu: true
           ksu-version: patch-1
           ksu-other: true
-          ksu-url: https://github.com/F640/SukiSU-Ultra/tree/patch-1
+          ksu-url: https://github.com/F640/SukiSU-Ultra
           lxc: true
           lxc-patch: true
           nethunter: true
