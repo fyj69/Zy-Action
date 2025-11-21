@@ -28,7 +28,7 @@ jobs:
           android-version: 12
           aosp-clang-version: r416183b
           ksu: true
-          ksu-version: nongki
+          ksu-version: patch-1
           ksu-other: true
           ksu-url: https://github.com/SukiSU-Ultra/SukiSU-Ultra
           lxc: true
