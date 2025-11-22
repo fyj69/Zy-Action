@@ -342,6 +342,4 @@ int path_umount(struct path *path, int flags)\n\
         ;;
     esac
 
-    echo "Patch applied successfully to $i"
-
 done
