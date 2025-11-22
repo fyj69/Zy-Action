@@ -167,6 +167,13 @@ int path_umount(struct path *path, int flags)\n\
 }}" fs/namespace.c
         fi
 
+        if grep -q "can_umount" "fs/namespace.c"; then
+            echo "[+] fs/namespace.c Patched!"
+            echo "[+] Count: $(grep -c "can_umount" "fs/namespace.c")"
+        else
+            echo "[-] fs/namespace.c patch failed for unknown reasons, please provide feedback in time."
+        fi
+
        echo "======================================"
         ;;
 
