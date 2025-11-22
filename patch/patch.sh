@@ -8,14 +8,14 @@
 set -e
 
 patch_files=(
-    fs/exec.c
-    fs/open.c
-    fs/read_write.c
-    fs/stat.c
+    #fs/exec.c
+    #fs/open.c
+    #fs/read_write.c
+    #fs/stat.c
     fs/namespace.c
-    drivers/input/input.c
-    fs/devpts/inode.c
-    security/selinux/hooks.c
+    #drivers/input/input.c
+    #fs/devpts/inode.c
+    #security/selinux/hooks.c
 )
 
 for i in "${patch_files[@]}"; do
