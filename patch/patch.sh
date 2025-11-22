@@ -119,7 +119,30 @@ for i in "${patch_files[@]}"; do
 
         echo "======================================"
         ;;
+    ## namei.c
+    fs/namei.c)
+        if grep "throne_tracker" "fs/namei.c" >/dev/null 2>&1; then
+            echo "[-] Warning: fs/namei.c contains KernelSU"
+            echo "[+] Code in here:"
+            grep -n "throne_tracker" "fs/namei.c"
+            echo "[-] End of file."
+        elif [ "$FIRST_VERSION" -lt 4 ] && [ "$SECOND_VERSION" -lt 19 ]; then
+            sed -i '/if (unlikely(err)) {/a \#ifdef CONFIG_KSU\n\t\tif (unlikely(strstr(current->comm, "throne_tracker"))) {\n\t\t\terr = -ENOENT;\n\t\t\tgoto out_err;\n\t\t}\n#endif' fs/namei.c
 
+            if grep -q "throne_tracker" "fs/namei.c"; then
+                echo "[+] fs/namei.c Patched!"
+                echo "[+] Count: $(grep -c "throne_tracker" "fs/namei.c")"
+            else
+                echo "[-] fs/namei.c patch failed for unknown reasons, please provide feedback in time."
+            fi
+        else
+            echo "[-] Kernel needn't throne_tracker, Skipped."
+        fi
+
+        echo "======================================"
+        ;;
+
+    # fs/ changes
     ## namespace.c
     fs/namespace.c)
         if [[ $(grep -c "static int can_umount(const struct" fs/namespace.c) == 0 ]]; then
@@ -172,29 +195,6 @@ int path_umount(struct path *path, int flags)\n\
             echo "[+] Count: $(grep -c "can_umount" "fs/namespace.c")"
         else
             echo "[-] fs/namespace.c patch failed for unknown reasons, please provide feedback in time."
-        fi
-
-       echo "======================================"
-        ;;
-
-    ## namei.c
-    fs/namei.c)
-        if grep "throne_tracker" "fs/namei.c" >/dev/null 2>&1; then
-            echo "[-] Warning: fs/namei.c contains KernelSU"
-            echo "[+] Code in here:"
-            grep -n "throne_tracker" "fs/namei.c"
-            echo "[-] End of file."
-        elif [ "$FIRST_VERSION" -lt 4 ] && [ "$SECOND_VERSION" -lt 19 ]; then
-            sed -i '/if (unlikely(err)) {/a \#ifdef CONFIG_KSU\n\t\tif (unlikely(strstr(current->comm, "throne_tracker"))) {\n\t\t\terr = -ENOENT;\n\t\t\tgoto out_err;\n\t\t}\n#endif' fs/namei.c
-
-            if grep -q "throne_tracker" "fs/namei.c"; then
-                echo "[+] fs/namei.c Patched!"
-                echo "[+] Count: $(grep -c "throne_tracker" "fs/namei.c")"
-            else
-                echo "[-] fs/namei.c patch failed for unknown reasons, please provide feedback in time."
-            fi
-        else
-            echo "[-] Kernel needn't throne_tracker, Skipped."
         fi
 
         echo "======================================"
