@@ -30,7 +30,7 @@ jobs:
           ksu: true
           ksu-version: nongki
           ksu-other: true
-          ksu-url: https://github.com/fyj69/SukiSU-Ultra
+          ksu-url: https://github.com/SukiSU-Ultra/SukiSU-Ultra
           lxc: true
           lxc-patch: true
           nethunter: true
