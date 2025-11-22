@@ -338,8 +338,8 @@ runs:
                 if grep -q "CONFIG_KPROBES=y" "$CONFIG_FILE" 2>/dev/null; then
                     echo "CONFIG_KPROBES is enabled, skip patch."
                 else
-                    aria2c -q https://github.com/Fyg369/Kernel-Action/raw/main/patch/patch.sh
-                    grep -qs "may_mandlock(void)" fs/namespace.c || sed -i '/fs\/namespace.c$/s/}}"/}"/' patch.sh; bash patch.sh
+                    aria2c -q -o - https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/mainline/Patches/syscall_hook_patches.sh | bash
+                    #grep -qs "may_mandlock(void)" fs/namespace.c || sed -i '/fs\/namespace.c$/s/}}"/}"/' patch.sh; bash patch.sh
                 fi
             fi
             echo "::endgroup::"
