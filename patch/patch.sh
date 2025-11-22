@@ -35,6 +35,13 @@ for i in "${patch_files[@]}"; do
         echo "[-] End of file."
         echo "======================================"
         continue
+    elif grep -q "path_umount" "$i"; then
+        echo "[-] Warning: $i contains Backport"
+        echo "[+] Code in here:"
+        grep -n "path_umount" "$i"
+        echo "[-] End of file."
+        echo "======================================"
+        continue    
     fi
 
     case $i in
