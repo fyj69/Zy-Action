@@ -143,7 +143,7 @@ for i in "${patch_files[@]}"; do
         ;;
 
     # fs/ changes
-    ## namespace.c
+    ## fs/namespace.c
     fs/namespace.c)
         if [[ $(grep -c "static int can_umount(const struct" fs/namespace.c) == 0 ]]; then
             if grep -q "may_mandlock(void)" fs/namespace.c; then
