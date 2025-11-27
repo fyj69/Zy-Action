@@ -40,9 +40,6 @@ inputs:
   ksu:
     required: false
     default: false
-  rekernel:
-    required: false
-    default: false
   ksu-version:
     required: false
     default: "main"
@@ -54,13 +51,16 @@ inputs:
   ksu-lkm:
     required: false
     default: false
-  kprobes:
-    required: false
-    default: false
   disable_fst:
     required: false
     default: false
   disable_cc_werror:
+    required: false
+    default: false
+  zram:
+    required: false
+    default: false
+  bbg:
     required: false
     default: false
   bbrplus:
@@ -79,9 +79,6 @@ inputs:
     required: false
     default: false
   nethunter-patch:
-    required: false
-    default: false
-  kvm:
     required: false
     default: false
   ccache:
@@ -345,10 +342,52 @@ runs:
             echo "::endgroup::"
         fi
 
-        if [ "${{ inputs.rekernel }}" == "true" ]; then
-            echo "::group::Initializing Re-Kernel"
-            curl -sSLf "https://github.com/dabao1955/kernel_build_action/raw/main/rekernel/patch.sh" -o /tmp/re.sh && bash /tmp/re.sh && rm -f /tmp/re.sh
+        if [[ "${{ inputs.ksu-url }}" == *"SukiSU-Ultra"* ]]; then
+            echo -e "CONFIG_KPM=y\nCONFIG_KSU_MANUAL_HOOK=y\nCONFIG_KALLSYMS=y\nCONFIG_KALLSYMS_ALL=y" >> arch/${{ inputs.arch }}/configs/${{ inputs.config }}
+            sed -i -e '20d' -e '18d' KernelSU/kernel/sucompat.c
+            sed -i 's/#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))/#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))/' KernelSU/kernel/kpm/super_access.c
+        fi
+
+        if [ "${{ inputs.zram }}" == "true" ]; then
+            echo "::group::Initializing Zram"
+            git clone https://github.com/ShirkNeko/SukiSU_patch.git
+            aria2c https://github.com/Fyj69/patch/raw/main/kernelsu/lz.sh && bash lz.sh arch/${{ inputs.arch }}/configs/${{ inputs.config }}
+            aria2c https://github.com/Fyj69/patch/raw/main/zram_4.9/lz.patch && patch -p1 -F 3 < lz.patch
+            cp -r ./SukiSU_patch/other/zram/lz4k/include/linux/* ./include/linux/
+            cp -r ./SukiSU_patch/other/zram/lz4k/lib/* ./lib/
+            cp -r ./SukiSU_patch/other/zram/lz4k/crypto/* ./crypto/
+            cp -r ./SukiSU_patch/other/zram/lz4k_oplus ./lib/
+            sed -i 's/CONFIG_ZRAM_DEFAULT_COMP_ALGORITHM="zstd"/CONFIG_ZRAM_DEFAULT_COMP_ALGORITHM="lz4kd"/' arch/${{ inputs.arch }}/configs/${{ inputs.config }}
             echo "::endgroup::"
+        fi
+
+        if [ "${{ inputs.bbg }}" == "true" ]; then
+            echo "::group::Adding BBG..."
+            wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash
+            echo "CONFIG_BBG=y" >> arch/${{ inputs.arch }}/configs/${{ inputs.config }}
+
+            if grep -q "^config LSM$" security/Kconfig; then
+                # Before sed: Show the original LSM default line for comparison
+                echo "=== Before sed ==="
+                sed -n '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ p }' security/Kconfig
+
+                # Apply the sed command to add baseband_guard to default security configurations
+                sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/lockdown/lockdown,baseband_guard/ } }' security/Kconfig
+
+                # After sed: Show the updated LSM default line
+                echo "=== After sed ==="
+                sed -n '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ p }' security/Kconfig
+
+                # Confirm baseband_guard is now present (should output the line if successful)
+                echo "=== Confirmation: grep for baseband_guard ==="
+                if ! grep -q "baseband_guard" security/Kconfig; then
+                    echo "ERROR: baseband_guard not found after sed - stopping workflow"
+                    exit 1
+                else
+                    echo "SUCCESS: baseband_guard found in security configuration"
+                    grep "baseband_guard" security/Kconfig
+                fi
+            fi
         fi
 
         if [ -f scripts/dtc/libfdt/mkdtboimg.py ]; then
@@ -397,13 +436,6 @@ runs:
              grep -q "CONFIG_CC_WERROR=n" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" || echo "CONFIG_CC_WERROR=n" | tee -a arch/${{ inputs.arch }}/configs/${{ inputs.config }} >/dev/null
          fi
 
-         if [ "${{ inputs.kprobes }}" == "true" ]; then
-             grep -q "CONFIG_MODULES=y" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" || echo "CONFIG_MODULES=y" | tee -a arch/${{ inputs.arch }}/configs/${{ inputs.config }} >/dev/null
-             grep -q "CONFIG_KPROBES=y" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" || echo "CONFIG_KPROBES=y" | tee -a arch/${{ inputs.arch }}/configs/${{ inputs.config }} >/dev/null
-             grep -q "CONFIG_HAVE_KPROBES=y" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" || echo "CONFIG_HAVE_KPROBES=y" | tee -a arch/${{ inputs.arch }}/configs/${{ inputs.config }} >/dev/null
-             grep -q "CONFIG_KPROBE_EVENTS=y" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}" || echo "CONFIG_KPROBE_EVENTS=y" | tee -a arch/${{ inputs.arch }}/configs/${{ inputs.config }} >/dev/null
-         fi
-
         if [ "${{ inputs.disable-lto }}" == "true" ]; then
             if grep -q "LTO" "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"; then
                 sed -i 's/CONFIG_LTO=y/CONFIG_LTO=n/' "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
@@ -411,13 +443,6 @@ runs:
                 sed -i 's/CONFIG_THINLTO=y/CONFIG_THINLTO=n/' "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
                 echo "CONFIG_LTO_NONE=y" >> "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
             fi
-        fi
-
-        if [ "${{ inputs.kvm }}" == "true" ]; then
-            echo "CONFIG_VIRTUALIZATION=y" >> "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
-            echo "CONFIG_KVM=y" >> "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
-            echo "CONFIG_KVM_MMIO=y" >> "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
-            echo "CONFIG_KVM_ARM_HOST=y" >> "arch/${{ inputs.arch }}/configs/${{ inputs.config }}"
         fi
 
         if [ "${{ inputs.lxc }}" == "true" ]; then
@@ -474,6 +499,24 @@ runs:
         echo "::endgroup::"
 
         unset CMD_PATH CMD_CC CMD_CLANG_TRIPLE CMD_CROSS_COMPILE CMD_CROSS_COMPILE_ARM32 USE_CCACHE CLANG_PATH HOMES KVER SWAP_FILE SUBLEVEL PATCHLEVEL VERSION GCC_DIR FILE FILE_NAME MATCHED_DIR FOLDER FOLDER_NAME GCC64 GCC32 NEED_GCC AOSP_CLANG_URL OTHER_CLANG_URL AOSP_GCC64_URL AOSP_GCC32_URL AOSP_GCC_BRANCH OTHER_GCC64_URL OTHER_GCC32_URL make_args
+
+        if [ -d KernelSU/kernel/kpm ] || [ -d KernelSU-Next/kernel/kpm ]; then
+            echo "::group:: Patch SukiSU Ultra KPM"
+            cd out/arch/${{ inputs.arch }}/boot
+            aria2c https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux -o patch
+            chmod 777 patch
+            ./patch
+            if [ $? -eq 0 ]; then
+              rm -f Image*
+              cp dts/qcom/*.dtb .
+              mv oImage Image
+              gzip -k Image Image.gz
+              cat Image.gz *.dtb > Image.gz-dtb && cd -
+              echo "Image file patching completed"
+            else
+              echo "KPM patching failed, using the original Image"
+            fi
+        fi
 
         if [ "${{ inputs.anykernel3 }}" == "false" ]; then
             echo "::group::Packaging boot.img"
